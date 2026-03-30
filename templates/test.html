@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>侧边栏测试</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        .menu-btn { 
+            width: 44px; height: 44px; 
+            background: #5B8DEF; color: white; 
+            border: none; border-radius: 8px; 
+            font-size: 20px; cursor: pointer; 
+        }
+        .sidebar { 
+            position: fixed; top: 0; left: -280px; 
+            width: 280px; height: 100vh; 
+            background: white; 
+            box-shadow: 2px 0 10px rgba(0,0,0,0.2);
+            transition: left 0.3s;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .sidebar.open { left: 0; }
+        .overlay { 
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+        }
+        .overlay.open { display: block; }
+        .close-btn {
+            background: none; border: none; font-size: 24px;
+            cursor: pointer; float: right;
+        }
+    </style>
+</head>
+<body>
+    <h1>侧边栏测试</h1>
+    <button class="menu-btn" onclick="toggleSidebar()">☰ 打开侧边栏</button>
+    
+    <div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+    <div class="sidebar" id="sidebar">
+        <button class="close-btn" onclick="closeSidebar()">×</button>
+        <h2>侧边栏</h2>
+        <p>💌 意见箱</p>
+        <p>📅 记忆时间线</p>
+        <p>📊 话题统计</p>
+    </div>
+    
+    <script>
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.add('open');
+            document.getElementById('overlay').classList.add('open');
+        }
+        function closeSidebar() {
+            document.getElementById('sidebar').classList.remove('open');
+            document.getElementById('overlay').classList.remove('open');
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "weather": {
+      "name": "Weather",
+      "zip_url": "https://lightmake.site/api/v1/download?slug=weather",
+      "source": "skillhub",
+      "version": "1.0.0"
+    }
+  }
+}

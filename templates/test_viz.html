@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>小陆可视化测试</title>
+    <style>
+        body { font-family: -apple-system, sans-serif; padding: 20px; background: #f5f5f5; }
+        .card { background: white; border-radius: 12px; padding: 16px; margin: 12px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        h2 { color: #5B8DEF; margin-bottom: 12px; }
+        .stat { display: inline-block; margin: 8px 16px; text-align: center; }
+        .stat-num { font-size: 32px; font-weight: bold; color: #5B8DEF; }
+        .stat-label { font-size: 12px; color: #666; }
+        .timeline-item { border-left: 2px solid #5B8DEF; padding-left: 16px; margin: 12px 0; }
+        .topic { display: inline-block; background: #E8F0FE; padding: 6px 12px; border-radius: 16px; margin: 4px; }
+        .witness { white-space: pre-line; line-height: 1.6; }
+    </style>
+</head>
+<body>
+    <h1>🌱 小陆可视化测试</h1>
+    
+    <div class="card">
+        <h2>📊 统计数据</h2>
+        <div id="stats"></div>
+    </div>
+    
+    <div class="card">
+        <h2>📅 记忆时间线</h2>
+        <div id="timeline"></div>
+    </div>
+    
+    <div class="card">
+        <h2>📊 话题统计</h2>
+        <div id="topics"></div>
+    </div>
+    
+    <div class="card">
+        <h2>👁️ 见证报告</h2>
+        <div id="witness" class="witness"></div>
+    </div>
+    
+    <div class="card">
+        <h2>🔍 卡点分析</h2>
+        <div id="stuck" class="witness"></div>
+    </div>
+    
+    <script>
+        const openid = 'viz_test';
+        
+        async function loadAll() {
+            // Stats
+            const stats = await fetch('/api/stats?openid=' + openid).then(r => r.json());
+            document.getElementById('stats').innerHTML = 
+                '<div class="stat"><div class="stat-num">' + stats.conversations + '</div><div class="stat-label">对话</div></div>' +
+                '<div class="stat"><div class="stat-num">' + stats.memories + '</div><div class="stat-label">记忆</div></div>' +
+                '<div class="stat"><div class="stat-num">' + stats.followups + '</div><div class="stat-label">跟进</div></div>';
+            
+            // Timeline
+            const timeline = await fetch('/api/timeline?openid=' + openid).then(r => r.json());
+            document.getElementById('timeline').innerHTML = timeline.map(m => 
+                '<div class="timeline-item">' +
+                '<div style="font-size:12px;color:#666">' + m.created_at + '</div>' +
+                '<div style="background:#F0F0F0;display:inline-block;padding:2px 8px;border-radius:10px;font-size:12px;margin:4px 0">' + m.emotion + '</div>' +
+                '<div>' + m.summary + '</div>' +
+                '</div>'
+            ).join('');
+            
+            // Topics
+            const topics = await fetch('/api/topics?openid=' + openid).then(r => r.json());
+            document.getElementById('topics').innerHTML = topics.map(t => 
+                '<span class="topic">' + t.topic + ' (' + t.count + ')</span>'
+            ).join('');
+            
+            // Witness
+            const witness = await fetch('/api/witness?openid=' + openid).then(r => r.json());
+            document.getElementById('witness').textContent = witness.report;
+            
+            // Stuck
+            const stuck = await fetch('/api/stuck?openid=' + openid).then(r => r.json());
+            document.getElementById('stuck').textContent = stuck.report;
+        }
+        
+        loadAll();
+    </script>
+</body>
+</html>

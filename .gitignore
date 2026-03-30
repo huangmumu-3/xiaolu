@@ -1,0 +1,52 @@
+# 环境变量（包含 API Key）
+.env
+
+# 数据库
+data/*.db
+data/*.db-journal
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-*
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Logs
+*.log
+logs/
+
+# 微信进程文件
+itchat.pkl
+wechat.pkl
+
+# 二维码临时文件
+*.png
+
+# Neo4j
+neo4j/
+
+# 压缩包
+*.zip
+*.tar.gz
+*.rar
+
+# 临时文件
+tmp/
+temp/
+*.tmp
