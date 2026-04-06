@@ -64,6 +64,10 @@ class CompanionEngine:
         from core.growth import GrowthMentor, AILearningGuide
         self.growth_mentor = GrowthMentor()
         self.ai_guide = AILearningGuide()
+        
+        # 行业学习路径
+        from core.learning_path import IndustryLearningPath
+        self.learning_path = IndustryLearningPath()
         self.skill_handler = SkillHandler()
 
     def _build_context(self) -> str:
@@ -122,8 +126,9 @@ class CompanionEngine:
                 return response
             
             # AI学习引导 - 在自己行业中应用
-            if 'AI' in user_input or '人工智能' in user_input or '学AI' in user_input or '用AI' in user_input:
-                return self.ai_guide.guide_application(user_input)
+            if 'AI' in user_input or '人工智能' in user_input or '学AI' in user_input or '用AI' in user_input or 'AI学习' in user_input:
+                # 使用新的学习路径系统
+                return self.learning_path.guide_long_term(user_input)
         
         # ─── 图片识别 ─────────────────────────────────────
         if image_data:
