@@ -294,7 +294,7 @@ class AIKnowledgeGuide:
             "ai能做什么","ai不能做什么","ai会不会","ai能不能",
             "提示词","prompt","ai引擎","大模型","agent","智能体","rag","fine-tune","fine-tuning","fine_tuning","微调",
             "思维链","ai写作","ai文案","ai决策","ai提效","ai效率","ai工作流","ai工作",
-            "ai应用","ai行业","ai职业","chatgpt","deepseek","gpt","ai工具","ai助手","ai机器人","学ai","ai学习","怎么学ai",
+            "ai应用","ai行业","ai职业","chatgpt","deepseek","gpt","ai工具","ai助手","ai机器人","学ai","ai学习","怎么学ai","openclaw","open claw",
         ]
         return any(kw in text.lower() for kw in keywords)
 
@@ -303,9 +303,12 @@ class AIKnowledgeGuide:
 
     def teach_concept(self, concept: str, user_industry: str = None, depth: str = "full") -> str:
         key = self._normalize_concept(concept)
+        # OpenClaw 特殊处理
+        if any(t in key for t in ["openclaw","open claw"]):
+            return self._teach_openclaw(concept)
         knowledge = CONCEPT_KNOWLEDGE.get(key)
         if not knowledge:
-            return self._teach_unknown_concept(concept)
+            return self._teach_unknown_concept(concept, user_industry)
         industry = user_industry or self._current_industry or "通用"
         if depth == "quick":
             return knowledge["one_line"] + "\n\n💭 " + knowledge["analogy"]
@@ -315,20 +318,45 @@ class AIKnowledgeGuide:
             return self._teach_full(knowledge, key, industry)
 
     def _normalize_concept(self, concept: str) -> str:
+        # 先剥离常见问题后缀，再做映射
+        c = concept.lower().strip()
+        for suffix in ["是什么意思","是什么","什么意思","哪个是","怎么理解","如何理解","能做什么","不能做什么","有什么用","怎么用","怎么学","学什么"]:
+            for prefix in ["ai ","大 ","小 "," "]:
+                if c.endswith(prefix + suffix):
+                    c = c[:-len(prefix+suffix)]
+                    break
+                elif c.endswith(suffix):
+                    c = c[:-len(suffix)]
+                    break
+        # 额外清理
+        c = c.strip()
+        # 常用缩写
+        if c in ["gpt","llm","copilot"]: return "ai引擎"
+        if c in ["openai","deepseek","claude","文心","通义"]: return "ai引擎"
+        if c in ["工作流","提效","效率工具"]: return "ai提效工作流"
+        if c in ["文案","写作","写文章","写稿"]: return "ai写好文案"
+        if c in ["决策","选择","分析决策"]: return "ai辅助决策"
+        if c in ["智能体","agent"]: return "agent智能体"
+        if c in ["微调","fine-tune","fine tuning"]: return "fine_tuning微调"
+        if c in ["知识库","rag检索"]: return "rag"
+        if c in ["思维","思考方式","推理"]: return "思维链"
+        if c == "ai": return "ai是什么"
+        if c in ["ai引擎","引擎"]: return "ai引擎"
+        if c in ["提示词","prompt工程"]: return "提示词"
         mapping = {
-            "ai":"ai是什么","ai是什么":"ai是什么","大模型":"ai是什么",
-            "ai引擎":"ai引擎","引擎":"ai引擎",
-            "提示词":"提示词","提示词基础":"提示词","提示词进阶":"提示词进阶",
+            "ai是什么":"ai是什么","大模型":"ai是什么",
+            "提示词进阶":"提示词进阶",
             "ai写文案":"ai写好文案","ai文案":"ai写好文案","ai写作":"ai写好文案",
             "ai辅助决策":"ai辅助决策","ai决策":"ai辅助决策",
-            "ai提效":"ai提效工作流","ai效率":"ai提效工作流","提效":"ai提效工作流","ai工作流":"ai提效工作流",
-            "思维链":"思维链","cot":"思维链","rag":"rag",
+            "ai提效":"ai提效工作流","ai效率":"ai提效工作流","ai工作流":"ai提效工作流",
+            "思维链":"思维链","cot":"思维链",
+            "rag":"rag",
             "fine-tuning":"fine_tuning微调","fine_tuning":"fine_tuning微调","微调":"fine_tuning微调",
-            "agent":"agent智能体","智能体":"agent智能体","agent智能体":"agent智能体",
+            "agent":"agent智能体","智能体":"agent智能体",
             "ai能做什么":"ai能做什么不能做什么","ai不能做什么":"ai能做什么不能做什么",
             "ai应用":"ai提效工作流","ai工作":"ai提效工作流",
         }
-        return mapping.get(concept.lower().strip(), concept.lower().strip())
+        return mapping.get(c, c)
 
     def _teach_industry_focused(self, knowledge: Dict, industry: str) -> str:
         ind_exp = knowledge.get("industry_examples", {})
@@ -395,6 +423,46 @@ class AIKnowledgeGuide:
             lines.append("")
         lines.extend(["### 怎么开始？", "","不知道自己在哪？→ 告诉我你是做什么的，我帮你定位","想从头开始？→ 问AI是什么，我们从那里开始","已经有基础？→ 告诉我你想深入哪个，我直接讲","想解决具体问题？→ 直接说你的问题，我帮你找最相关的","","你是什么职业？或者你现在最想用AI解决什么问题？"])
         return "\n".join(lines)
+
+    def _teach_openclaw(self, concept: str) -> str:
+        parts = [
+            "## OpenClaw是什么",
+            "",
+            "**OpenClaw = AI Agent 的操作系统——让AI不只能聊天，还能真正帮你做事。**",
+            "",
+            "💭 打个比方：普通AI像是能说会道的顾问，OpenClaw像是能说会道还能帮你跑腿的助理——你说帮我把这份报告发邮件给老板，它真的就发了，不只是给你一个草稿。",
+            "",
+            "## 核心优势",
+            "",
+            "**1. 记忆系统**",
+            "不只是聊天记录，而是真正理解你说过什么、关心什么——小陆就是用它做的。",
+            "",
+            "**2. 工具调用**",
+            "能连接真实的工具和服务：查天气、发邮件、管文件、搜索网页，不只是说还能做。",
+            "",
+            "**3. 主动能力**",
+            "不是等你问，而是主动关心你：你昨天说要做的事完成了吗？",
+            "",
+            "**4. 多渠道接入**",
+            "微信、Telegram、网页……都能用，随时随地找到你的AI伙伴。",
+            "",
+            "**5. 自我迭代**",
+            "能根据你的反馈自动学习，变得越来懂你——这就是小陆一直在做的事。",
+            "",
+            "## 现在就能做",
+            "你现在和小陆的每一次对话，都在让小陆更懂你。这就是OpenClaw的记忆系统在发挥作用。",
+            "",
+            "## 常见误区",
+            "",
+            "以为OpenClaw只是一个聊天机器人 → 其实它是AI加工具加记忆加主动的全套系统",
+            "以为AI说建议就是结果 → OpenClaw能做到的不只是给建议，而是帮你执行",
+            "",
+            "---",
+            "",
+            "你是什么职业？想用AI解决什么问题？我们来聊聊OpenClaw能帮你做什么~",
+        ]
+        return "\n".join(parts)
+
 
     def set_industry(self, industry: str):
         self._current_industry = industry

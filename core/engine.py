@@ -104,9 +104,13 @@ class CompanionEngine:
             # AI知识学习系统 - 分层教学法
             if self.ai_knowledge.is_ai_learning_question(user_input):
                 from core.ai_knowledge import detect_industry
-                industry = detect_industry(user_input)
-                if industry and not self.ai_knowledge.get_industry():
-                    self.ai_knowledge.set_industry(industry)
+                # 先检测消息中是否包含行业关键词
+                detected = detect_industry(user_input)
+                # 如果检测到行业，记录下来（用于后续对话）
+                if detected:
+                    self.ai_knowledge.set_industry(detected)
+                # 优先用检测到的行业，其次用已记住的行业
+                industry = detected or self.ai_knowledge.get_industry()
                 if self.ai_knowledge.should_teach_learning_path(user_input):
                     return self.ai_knowledge.show_learning_path(industry)
                 return self.ai_knowledge.teach_concept(user_input, industry, depth="full")
