@@ -64,6 +64,15 @@ class CompanionEngine:
         from core.growth import GrowthMentor, AILearningGuide
         self.growth_mentor = GrowthMentor()
         self.ai_guide = AILearningGuide()
+        
+        # 人味系统
+        from core.humanity import HumanityEngine
+        self.humanity = HumanityEngine()
+        
+        # AI知识助手
+        from core.ai_knowledge import AIKnowledgeGuide
+        self.ai_knowledge = AIKnowledgeGuide()
+        
         self.skill_handler = SkillHandler()
 
     def _build_context(self) -> str:
@@ -92,6 +101,10 @@ class CompanionEngine:
         # ─── 嘴替检测优先 ─────────────────────────────────
         # 检测是否需要嘴替
         if not skip_witness:
+            # AI知识解释
+            if self.ai_knowledge.is_ai_concept_question(user_input):
+                return self.ai_knowledge.generate_explanation(user_input)
+            
             # 技能安装/管理
             if self.skill_handler.is_skill_request(user_input):
                 # 先尝试直接处理（安装/卸载）
