@@ -133,23 +133,125 @@ def chat():
     message = data.get('message', '').strip()
     openid = data.get('openid', None)
     image_data = data.get('image', None)
+    file_data = data.get('file', None)  # 新增：文件数据
     
-    if not message and not image_data:
+    if not message and not image_data and not file_data:
         return jsonify({'error': '消息不能为空'}), 400
     
     user_id = get_or_create_user(openid)
     engine = get_user_engine(user_id)
     
     try:
+        # 处理文件上传
+        if file_data:
+            file_info = process_uploaded_file(file_data, user_id)
+            # 把文件信息加入消息上下文
+            message = f"[用户上传了文件: {file_info['name']}]\n\n{message}" if message else f"[用户上传了文件: {file_info['name']}]"
+            # 如果提取到了文本内容，加入上下文
+            if file_info.get('text_content'):
+                message += f"\n\n文件内容预览:\n{file_info['text_content'][:2000]}"
+        
         response = engine.chat(message, image_data=image_data)
         return jsonify({
             'response': response,
-            'user_id': user_id
+            'user_id': user_id,
+            'file_info': file_data.get('name') if file_data else None
         })
     except Exception as e:
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
+
+
+def process_uploaded_file(file_data: dict, user_id: str) -> dict:
+    """处理上传的文件，返回文件信息"""
+    import base64
+    import os
+    
+    name = file_data.get('name', 'unknown')
+    file_type = file_data.get('type', '')
+    content_b64 = file_data.get('content', '')
+    
+    # 创建上传目录
+    upload_dir = f'./data/uploads/{user_id}'
+    os.makedirs(upload_dir, exist_ok=True)
+    
+    # 保存文件
+    file_path = os.path.join(upload_dir, name)
+    try:
+        file_bytes = base64.b64decode(content_b64)
+        with open(file_path, 'wb') as f:
+            f.write(file_bytes)
+    except Exception as e:
+        print(f"保存文件失败: {e}")
+    
+    # 提取文本内容（用于AI理解）
+    text_content = ''
+    ext = name.split('.').pop().lower() if '.' in name else ''
+    
+    try:
+        if ext in ['txt', 'md', 'json', 'csv', 'py', 'js', 'html', 'css']:
+            # 纯文本文件直接读取
+            text_content = base64.b64decode(content_b64).decode('utf-8', errors='ignore')
+        elif ext == 'pdf':
+            # PDF 提取文本
+            text_content = extract_pdf_text(file_path)
+        elif ext in ['ppt', 'pptx']:
+            # PPT 提取文本
+            text_content = extract_ppt_text(file_path)
+        elif ext in ['doc', 'docx']:
+            # Word 提取文本
+            text_content = extract_word_text(file_path)
+    except Exception as e:
+        print(f"提取文本失败: {e}")
+    
+    return {
+        'name': name,
+        'type': file_type,
+        'size': len(content_b64),
+        'path': file_path,
+        'text_content': text_content
+    }
+
+
+def extract_pdf_text(file_path: str) -> str:
+    """提取PDF文本"""
+    try:
+        import fitz  # PyMuPDF
+        doc = fitz.open(file_path)
+        text = ''
+        for page in doc:
+            text += page.get_text()
+        doc.close()
+        return text[:5000]  # 限制长度
+    except Exception as e:
+        return f"[PDF文件，暂无法提取文本]" if "ImportError" not in str(e) else "[PDF文件，需要安装PyMuPDF库才能提取文本]"
+
+
+def extract_ppt_text(file_path: str) -> str:
+    """提取PPT文本"""
+    try:
+        from pptx import Presentation
+        prs = Presentation(file_path)
+        text = ''
+        for slide in prs.slides:
+            for shape in slide.shapes:
+                if hasattr(shape, 'text'):
+                    text += shape.text + '\n'
+        return text[:5000]
+    except Exception as e:
+        return f"[PPT文件，暂无法提取文本]" if "ImportError" not in str(e) else "[PPT文件，需要安装python-pptx库才能提取文本]"
+
+
+def extract_word_text(file_path: str) -> str:
+    """提取Word文本"""
+    try:
+        from docx import Document
+        doc = Document(file_path)
+        text = '\n'.join([p.text for p in doc.paragraphs])
+        return text[:5000]
+    except Exception as e:
+        return f"[Word文件，暂无法提取文本]" if "ImportError" not in str(e) else "[Word文件，需要安装python-docx库才能提取文本]"
 
 
 @app.route('/api/history', methods=['GET'])
