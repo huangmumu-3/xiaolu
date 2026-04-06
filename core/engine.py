@@ -4,6 +4,8 @@
 import os
 import openai
 from dotenv import load_dotenv
+from typing import List, Dict, Optional
+from datetime import datetime
 from core.database import CompanionDB
 from core.memory import MemoryExtractor
 from core.knowledge import format_knowledge_prompt
@@ -57,6 +59,12 @@ class CompanionEngine:
         self.social_coach = SocialCoach()
         self.ai_tutor = AITutor()
         self.skill_handler = SkillHandler()
+        
+        # 成长导师
+        from core.growth import GrowthMentor, AILearningGuide
+        self.growth_mentor = GrowthMentor()
+        self.ai_guide = AILearningGuide()
+        self.skill_handler = SkillHandler()
 
     def _build_context(self) -> str:
         """构建上下文：最近对话 + 重要记忆"""
@@ -103,6 +111,19 @@ class CompanionEngine:
             
             if self.ai_tutor.is_ai_tutor_request(user_input):
                 return self.ai_tutor.coach(user_input)
+            
+            # 成长导师 - 目标设定
+            if self.growth_mentor.is_goal_setting(user_input):
+                goal_info = self.growth_mentor.parse_goal(user_input)
+                self._save_goal(user_input, goal_info)
+                first_action = goal_info.get('micro_action', '')
+                daily = self.growth_mentor.generate_daily_mission(goal_info, 1)
+                response = "好的，我帮你记住了这个目标 🎯\n\n目标：" + goal_info.get('long_goal', '') + "\n\n" + daily + "\n\n---\n💡 今天的第一步：" + first_action + "\n\n我们每天完成一小步，30天后回来看，你会发现已经走了很远。"
+                return response
+            
+            # AI学习引导 - 在自己行业中应用
+            if 'AI' in user_input or '人工智能' in user_input or '学AI' in user_input or '用AI' in user_input:
+                return self.ai_guide.guide_application(user_input)
         
         # ─── 图片识别 ─────────────────────────────────────
         if image_data:
@@ -202,6 +223,25 @@ class CompanionEngine:
             for c in convs
         ])
 
+    def _save_goal(self, goal_text: str, goal_info: Dict):
+        """保存用户目标"""
+        import json
+        self.db.conn.execute("""
+            CREATE TABLE IF NOT EXISTS goals (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                goal_text TEXT,
+                goal_info TEXT,
+                created_at TEXT,
+                current_day INTEGER DEFAULT 1,
+                status TEXT DEFAULT 'active'
+            )
+        """)
+        self.db.conn.execute(
+            "INSERT INTO goals (goal_text, goal_info, created_at) VALUES (?, ?, ?)",
+            (goal_text, json.dumps(goal_info, ensure_ascii=False), datetime.now().isoformat())
+        )
+        self.db.conn.commit()
+
     def _handle_image(self, image_data: str, user_input: str) -> str:
         """处理用户发送的图片"""
         import base64
@@ -234,6 +274,56 @@ class CompanionEngine:
         except Exception as e:
             # 如果不支持 vision，降级为文本描述
             return f"收到图片了！不过我目前还不支持看图片 😢 你能把图片里的内容描述一下吗？或者直接告诉我你想问什么~"
+
+    def get_today_mission(self) -> str:
+        """获取今日微任务"""
+        import json
+        rows = self.db.conn.execute(
+            "SELECT * FROM goals WHERE status='active' ORDER BY created_at DESC LIMIT 1"
+        ).fetchall()
+        
+        if not rows:
+            return None
+        
+        row = rows[0]
+        goal_info = json.loads(row['goal_info'])
+        current_day = row['current_day']
+        
+        # 生成今日任务
+        daily = self.growth_mentor.generate_daily_mission(goal_info, current_day)
+        progress = self.growth_mentor.check_progress(current_day, goal_info)
+        
+        return {
+            'day': current_day,
+            'goal': goal_info.get('long_goal', ''),
+            'mission': daily,
+            'progress': progress
+        }
+
+    def advance_day(self) -> str:
+        """推进一天"""
+        import json
+        rows = self.db.conn.execute(
+            "SELECT * FROM goals WHERE status='active' ORDER BY created_at DESC LIMIT 1"
+        ).fetchall()
+        
+        if not rows:
+            return "暂无进行中的目标"
+        
+        row = rows[0]
+        goal_info = json.loads(row['goal_info'])
+        current_day = row['current_day'] + 1
+        
+        self.db.conn.execute(
+            "UPDATE goals SET current_day = ? WHERE id = ?",
+            (current_day, row['id'])
+        )
+        self.db.conn.commit()
+        
+        daily = self.growth_mentor.generate_daily_mission(goal_info, current_day)
+        progress = self.growth_mentor.check_progress(current_day, goal_info)
+        
+        return progress + "\n\n" + daily
 
     def query_past(self, query: str) -> str:
         """查询过去的事情：'我三个月前在纠结什么'"""
