@@ -1,246 +1,461 @@
-"""
-AI知识助手 - 快速、带人味地解释AI概念
-"""
+# -*- coding: utf-8 -*-
+'''AI知识助手 - 渐进式学习系统'''
 import os
-import random
 from typing import Dict, List, Optional
 from dotenv import load_dotenv
 import openai
 
 load_dotenv()
 
+LEARNING_PATH = {
+    "foundation": {
+        "name": "AI入门",
+        "description": "从零开始，学会和AI对话",
+        "duration": "1-2周",
+        "topics": [
+            "ai是什么",
+            "ai引擎",
+            "提示词基础",
+            "ai能做什么"
+        ],
+        "goal": "能独立用AI解决日常问题"
+    },
+    "application": {
+        "name": "行业应用",
+        "description": "把AI变成你的工作伙伴",
+        "duration": "持续",
+        "topics": [
+            "ai行业应用",
+            "ai提效工作流",
+            "ai写好文案",
+            "ai辅助决策"
+        ],
+        "goal": "AI成为日常离不开的工具"
+    },
+    "advanced": {
+        "name": "进阶技巧",
+        "description": "让AI更懂你、帮你更多",
+        "duration": "持续",
+        "topics": [
+            "提示词进阶",
+            "思维链",
+            "知识库"
+        ],
+        "goal": "能熟练运用各种AI技巧"
+    },
+    "master": {
+        "name": "AI超级用户",
+        "description": "成为团队里的AI专家",
+        "duration": "持续",
+        "topics": [
+            "agent智能体",
+            "自动化工作流",
+            "fine_tuning微调"
+        ],
+        "goal": "能教别人用AI，能搭建AI工作流"
+    }
+}
 
-class AIKnowledgeGuide:
-    """AI知识引导 - 快速掌握AI概念"""
+USER_INDUSTRY_KEYWORDS = {
+    "运营": [
+        "运营",
+        "增长",
+        "营销",
+        "推广",
+        "内容运营",
+        "电商运营",
+        "新媒体运营"
+    ],
+    "老师": [
+        "老师",
+        "教师",
+        "教学",
+        "班主任",
+        "培训师",
+        "课程设计",
+        "教育"
+    ],
+    "设计师": [
+        "设计",
+        "UI",
+        "UX",
+        "平面设计",
+        "视觉设计",
+        "产品设计"
+    ],
+    "程序员": [
+        "程序员",
+        "开发",
+        "工程师",
+        "前端",
+        "后端",
+        "全栈",
+        "DevOps",
+        "架构师"
+    ],
+    "销售": [
+        "销售",
+        "BD",
+        "商务",
+        "客户成功",
+        "大客户"
+    ],
+    "HR": [
+        "HR",
+        "人力资源",
+        "招聘",
+        "培训",
+        "绩效"
+    ],
+    "财务": [
+        "财务",
+        "会计",
+        "审计",
+        "税务",
+        "金融",
+        "投资"
+    ],
+    "管理者": [
+        "管理",
+        "leader",
+        "总监",
+        "经理",
+        "主管",
+        "CEO",
+        "CTO"
+    ],
+    "学生": [
+        "学生",
+        "大一",
+        "大二",
+        "考研",
+        "保研",
+        "留学生",
+        "论文"
+    ]
+}
 
-    # 知识库：常见AI概念的快速解释
-    KNOWLEDGE_BASE = {
-        'ai引擎': {
-            'simple': 'AI引擎就像是AI的"大脑"，负责思考和生成回答。不同的引擎有不同的特点：',
-            'levels': [
-                '🧠 GPT-4：最聪明，知识最丰富，但贵且慢',
-                '💡 GPT-3.5：够用，便宜快速，适合日常',
-                '🇨🇳 DeepSeek：国产，便宜，中文好',
-                '🇨🇳 文心一言：百度出品，中文场景强',
-            ],
-            'analogy': '就像不同的发动机，动力、耗油、适用场景不同'
-        },
-        '提示词': {
-            'simple': '提示词就是你和AI说话的"方式"。说得好，AI就答得好：',
-            'rules': [
-                '📌 具体 > 模糊："写一封求职邮件" > "帮我写信"',
-                '📌 角色 > 空泛："你是一位资深HR" > "你很专业"',
-                '📌 格式 > 无要求："用表格呈现" > "列出来"',
-            ],
-            'analogy': '就像点外卖，说清楚你要什么，店家才能给对'
-        },
-        '大模型': {
-            'simple': '大模型就是"读了很多书的AI"，见过海量文本，所以懂得多：',
-            'points': [
-                '📚 读了多少：参数越多，通常懂得越多',
-                '🎯 专长不同：有的擅长写作，有的擅长代码',
-                '💰 成本差异：能力强的通常更贵',
-            ],
-            'analogy': '就像一个读过万卷书的人，什么话题都能聊两句'
-        },
-        'rag': {
-            'simple': 'RAG就是让AI"查资料后再回答"，减少瞎编：',
-            'steps': [
-                '1️⃣ 把你的资料切碎存起来',
-                '2️⃣ 用户问问题时，先找相关资料',
-                '3️⃣ 把资料和问题一起给AI',
-                '4️⃣ AI基于真实资料回答',
-            ],
-            'analogy': '就像考试时让你先翻书，再答题'
-        },
-        'agent': {
-            'simple': 'Agent就是AI能"自己动手做事"，不只是回答问题：',
-            'abilities': [
-                '🔍 自动搜索信息',
-                '📝 自动执行任务',
-                '🔄 根据结果调整行动',
-                '📋 多步骤协作',
-            ],
-            'analogy': '就像一个能自己干活的助理，不只是回答问题'
-        },
-        'token': {
-            'simple': 'Token是AI计算字词的方式，大约1个中文=2个token：',
-            'tips': [
-                '💡 一次对话大约消耗几百到几千token',
-                '💡 DeepSeek便宜，GPT贵',
-                '💡 想省钱就说清楚你要什么，少废话',
-            ],
-            'analogy': '就像按字数收费的小说，写得短就便宜'
-        },
-        'fine_tuning': {
-            'simple': 'Fine-tuning就是"专门训练"一个AI，让它更懂某个领域：',
-            'when': [
-                '✅ 需要特定风格（如客服话术）',
-                '✅ 需要专有知识（如公司产品）',
-                '❌ 通用问题不需要',
-            ],
-            'cost': '训练一次要几千到几万，谨慎使用'
-        },
+def detect_industry(user_text: str) -> Optional[str]:
+    user_lower = user_text.lower()
+    for industry, keywords in USER_INDUSTRY_KEYWORDS.items():
+        if any(kw in user_lower for kw in keywords):
+            return industry
+    return None
+
+_CONCEPTS = [
+    (
+        "ai是什么",
+        "AI是一个读了几亿本书的人，你问什么它都能接上话。",
+        "就像一个记忆力超强的学霸，什么都懂一点，但需要你给它出题，它才知道怎么答。",
+        "现在就可以做：把你刚才想查Google的问题，直接问ChatGPT或DeepSeek，比较一下哪个更好用。",
+        "知道AI擅长什么、不擅长什么，决定了你用它还是不用它。AI擅长搜索和整理，不擅长判断什么是对的——那个还是你来。",
+        "误区：把AI当成搜索引擎用（问2024年发生了什么）→ 其实AI更擅长「帮我分析」「给我建议」这类主动性问题",
+        {"通用": "AI = 一个永远在线的学霸助理，帮你查资料、想方案、写草稿", "运营": "AI = 24小时在线的文案搭档，帮你想标题、润色文案、分析数据", "老师": "AI = 备课助手，帮你生成习题、润色教案、解释概念", "设计师": "AI = 灵感发生器，帮你描述画面、生成参考、想创意方向", "程序员": "AI = 结对编程伙伴，帮你写代码、debug、解释文档", "销售": "AI = 话术库和模拟对手，帮你想开场白、应对异议", "HR": "AI = 筛选简历初筛器，帮你在海量简历中找到关键词"},
+    ),
+    (
+        "ai引擎",
+        "AI引擎就是AI的大脑，不同引擎就像不同的人——各有性格和擅长。",
+        "就像不同的厨师：有的擅长川菜、有的擅长法餐，不存在最好的厨师，只有最适合你当前任务的厨师。",
+        "现在就可以做：在同一个问题（如帮我写一封请假邮件）同时问DeepSeek和文心一言，看哪个回复更对你胃口。",
+        "选对引擎 = 省时间和钱。简单任务用便宜的，复杂任务用聪明的。DeepSeek性价比高适合日常，GPT-4适合需要深度思考的任务。",
+        "误区：一直用同一个引擎所有任务 → 其实不同引擎擅长不同，应该像选工具一样选引擎",
+        {"通用": "日常问答、文字处理 → DeepSeek（便宜够用）；长文写作、深度分析 → GPT-4（更强但贵）", "程序员": "代码生成、debug → GitHub Copilot；技术文档解释 → GPT-4；中文注释 → DeepSeek", "运营": "文案生成 → DeepSeek（中文好）；多语言营销 → GPT-4", "老师": "生成习题、教案 → DeepSeek；英文材料翻译、解释 → GPT-4"},
+    ),
+    (
+        "ai能做什么不能做什么",
+        "AI擅长：搜索、写作、分析、创意。不擅长：知道什么是对的、代替你做决定、拥有真实情感。",
+        "AI像一个超级助理——能帮你做很多事，但签字还是得你自己来。",
+        "现在就可以做：列一个你的日常工作清单，问AI哪些可以交给AI做——你会发现至少30%可以。",
+        "知道AI能做什么，你才能真正用它省时间。很多人不用AI是因为不知道AI能做什么，或者对AI期望太高。",
+        "误区1：让AI做需要判断对错的事（AI没有是非观）→ 应该让它提供选项，你来选 | 误区2：期望AI一步到位 → 其实AI是第一稿加你的修改等于最终稿",
+        {"通用": "能：写草稿、翻译、总结、查资料、分析数据 | 不能：知道你们公司的独特情况、做价值判断", "运营": "能：生成文案变体、分析用户评论情绪、想活动创意 | 不能：知道你们品牌的调性", "老师": "能：生成习题、解释知识点、批改选择题 | 不能：理解学生为什么某道题不会", "程序员": "能：写代码框架、debug、解释报错 | 不能：知道你们的系统架构为什么这样设计"},
+    ),
+    (
+        "提示词",
+        "提示词就是你和AI说话的方式。说得好，AI就是天才；说得烂，AI就是笨蛋。",
+        "就像点外卖——说随便来点什么可能来你不爱的，说不要辣、多加芝士、加一份薯条店家才能给对。",
+        "现在就可以做：把「帮我写封信」改成「帮我的老板写一封邮件，主题是项目延期三天道歉，语气要专业但不卑微，不要超过150字」——对比效果。",
+        "提示词质量直接决定AI输出质量。研究表明，光是改变提问方式，同一个AI的准确率可以相差40%。你不需要学编程，但你需要学会正确地描述需求。",
+        "给AI模糊的指令，然后抱怨AI不行 → 其实是你没表达清楚 | 一次给太多信息 → 应该从一个简单问题开始，根据回答再追问",
+        {"通用": "❌ 不好：帮我写文案 | ✅ 好：帮我想5个朋友圈文案，主题是推广蓝牙耳机，要有趣、适合25-35岁年轻人，不超过100字", "运营": "❌ 不好：分析一下这份数据 | ✅ 好：这是一个月的用户增长数据，帮我找出1）增长最快的三天 2）最慢的三天 3）给出可能的解释", "老师": "❌ 不好：出几道题 | ✅ 好：为初中物理光的折射章节出10道选择题，难度中等，包含2道易错题，附答案和解析", "程序员": "❌ 不好：这个代码报错 | ✅ 好：我的Python代码在读取CSV时报错UnicodeDecodeError，文件路径是中文名，请帮我修复并解释原因", "设计师": "❌ 不好：帮我想个创意 | ✅ 好：帮我想3个极简风格的海报概念，主角是一只咖啡馆看书的猫，目标受众是文艺青年"},
+    ),
+    (
+        "提示词进阶",
+        "进阶提示词 = 给AI一个身份 + 清晰目标 + 具体格式 + 参考例子。",
+        "普通提示词是随便写篇文章，进阶提示词是你现在是资深科技记者，用500字写一篇iPhone评测，要有数据对比，语气专业但易懂——差别就是这么大。",
+        "现在就可以做：给你常用的AI写一个角色卡：你是一位有10年经验的资深你的职业，帮我具体任务，符合行业惯例，注重某个细节。对比有/无角色卡的效果。",
+        "进阶提示词能让AI准确率提升2-3倍。同一个问题，普通问法可能得3次才能得到满意答案，进阶问法1次就够了——省时间就是省命。",
+        "以为越复杂越好 → 有时候简单直接的提示词效果更好 | 一次问太多（帮我写一本书）→ 正确做法是拆解成多个小问题逐步来",
+        {"通用": "你现在是职业身份，背景说明，你的目标，输出要求，参考示例 = 一个完整的进阶提示词模板", "运营": "你现在是一位月GMV千万级别的电商运营，帮我分析这份数据，找出3个最关键的提升机会，并给出可执行的建议", "HR": "你现在是一位有10年经验的技术招聘HR，帮我筛选这批简历，对每个候选人给出1）是否推荐面试 2）主要原因 3）应该问什么问题", "销售": "你现在是我的金牌销售教练，模拟客户性格描述+可能的异议，我向你推销产品，你来练习应对我的各种异议"},
+    ),
+    (
+        "ai写好文案",
+        "AI写文案的核心不是帮我写，而是帮我改。AI先写，你来调。",
+        "AI是钢琴，你是指挥。钢琴本身能发出声音，但没有指挥就只是噪音。",
+        "现在就可以做：不要让AI「写」文案，而是让它「改」文案。先写一个你自己最满意的版本，再对AI说帮我把这个改得更吸引人、更简洁、更有说服力。",
+        "纯AI写的文案读起来AI味很重——太完美、太泛泛。用户能感受到。只有经过你调整的AI文案才能真正打动人。AI是效率工具，你的审美判断才是质量的把关。",
+        "以为AI能一步到位写出完美文案 → 其实AI擅长批量生产选项，你的价值在于选出最好的那个并做最后调整 | 完全不用AI自己写 → 其实80%的文案框架AI能搞定",
+        {"通用": "AI写初稿 → 你调整语气和细节 → 定稿。关键：不要跳过你调整这一步", "运营": "AI生成10个标题 → 你选出3个最喜欢的 → 让AI按这3个方向各写一版 → 你选一个改 → 发！", "老师": "AI生成一段知识讲解 → 你加入一个生活中的真实例子 → 学生更容易理解", "设计师": "用AI描述画面、生成参考词 → 但最终创意和选择还是你来 → AI是灵感触发器，不是创意替代品"},
+    ),
+    (
+        "ai辅助决策",
+        "AI不帮你做决定，但它能帮你把所有选项整理清楚，让你自己做出更好的决定。",
+        "AI就像一个超级秘书，帮你把所有资料都整理好、列出利弊，但签字的还是你。",
+        "现在就可以做：下次遇到选择困难（如要不要换工作），把背景信息告诉AI，让它「帮我列出这个决定的利弊各5条，以及每条我应该问自己的问题」。你自己再想。",
+        "决策质量取决于你考虑了多少选项和利弊。AI能帮你系统性地思考，而不只是脑子一团浆糊。重要决定用AI辅助，避免脑子一热就做了。",
+        "把AI当成算命先生（我该选哪个）→ AI不知道什么对你重要 | 正确用法：让AI帮你梳理选项和利弊，你来做价值判断",
+        {"通用": "换城市、换工作、买房等重大决策：让AI整理思路，而不是让AI替你决定", "运营": "选择活动方案：让AI从ROI、可行性、风险等维度评估3个方案，输出对比表格", "程序员": "技术选型：让AI从学习曲线、社区活跃度、性能、维护成本等维度分析各技术栈", "HR": "招聘决策：让AI从简历和面试表现分析候选人的优劣势，给出客观对比"},
+    ),
+    (
+        "ai提效工作流",
+        "AI提效的关键不是用AI替代工作，而是用AI处理工作中最耗时的部分。",
+        "就像洗碗机——不是替代你做饭，而是让你不用站在水池边花1小时洗碗。AI接管那些耗时间但不需要你独特智慧的工作。",
+        "现在就可以做：今天工作里做一次AI替代检测：做完一件事后问自己这一步AI能帮我做吗？——很可能至少有一半的重复性工作可以。",
+        "很多人用AI只是尝鲜，没有真正省到时间。真正的提效是把AI嵌入你每天的工作流里，而不是想起来才用一下。",
+        "把AI当成玩具偶尔用一下 → 正确：把它变成每天工作流的一部分 | 什么都要AI做 → 其实选择哪些部分AI做，哪些必须自己做才是真正的效率思维",
+        {"通用": "每天固定工作流：收集信息→AI总结 | 写草稿→AI润色 | 检查错误→AI校对 | 你只做需要你独特判断的部分", "运营": "内容生产工作流：选题→AI搜热点 | 草稿→AI生成 | 改稿→你调整 | 配图→AI描述词 | 发布", "老师": "备课工作流：确定知识点→AI生成教案框架 | 找例子→AI联想 | 出习题→AI生成 | 你加入学生实际情况", "程序员": "开发工作流：需求分析→AI辅助 | 写代码→AI生成框架 | debug→AI协助 | review→你把关"},
+    ),
+    (
+        "思维链",
+        "思维链 = 让AI把思考过程说出来，而不是直接给答案。思考过程往往比答案更有价值。",
+        "普通AI给你答案就像老师直接报答案，进阶AI给你思考过程就像老师在讲台上一步步推导——后者你才能真正学到东西。",
+        "现在就可以做：在问题后面加一句请一步步思考并解释你的推理过程。对比有无这句话的答案区别——你会发现有思维链的答案更准确，也更能帮你理解。",
+        "AI的思维链 = AI的推理过程。知道AI怎么想的，你就能：1）判断它是否想对了 2）从它的思路中学到东西 3）发现它推理中的漏洞。",
+        "不关心AI怎么想的，只看答案对不对 → 其实理解AI的推理过程才能真正学会用它 | 思维链只在复杂问题时才用 → 其实日常问题中用也能校准AI的思考方向",
+        {"通用": "问复杂问题时：请一步步分析这个问题，并解释你的推理 → 能看到AI的思考路径，帮你判断答案是否可信", "程序员": "问AI代码问题时：请分析这段代码为什么会报错，解释一下你的推理过程 → 比直接给答案更能帮你理解", "老师": "让学生看AI的思维链：AI是怎么解这道数学题的？ → 可以作为教学工具，展示解题思路", "运营": "分析活动效果时：请一步步分析这个数据，指出可能的原因 → AI的推理过程能给你新的洞察"},
+    ),
+    (
+        "agent智能体",
+        "智能体 = 能自己规划、自己行动、自己调整的AI。不是你让它做什么它就做一次，而是会一直做直到完成目标。",
+        "普通AI像是你说去给我倒杯水，它就倒一杯水。智能体像是你说确保我每天喝够八杯水，它会：早上提醒你、记录你喝了多少、下午还提醒你、你忘了还追问。",
+        "现在就能用：试着对ChatGPT说帮我制定并跟踪本周的学习计划，每天提醒我做一件事——观察它如何回应。",
+        "智能体是AI从工具到助手的升级。它能帮你管理需要持续跟进的长期任务，而不只是回答一次性问题。小陆本身就是一个陪伴型智能体的雏形。",
+        "觉得智能体还很遥远 → 其实现在很多工具已经具备基本Agent能力了 | 把Agent当成完全自主的 → 好的Agent需要你定期review它的行动，确保方向正确",
+        {"通用": "让Agent管理你的OKR：定期检查进度、提醒你差距、帮你调整计划", "运营": "让Agent监控每天的运营数据：发现异常自动告警、分析原因、给出建议", "老师": "让Agent跟踪每个学生的学习进度：提醒复习、自动出练习、记录薄弱点", "销售": "让Agent管理整个销售漏斗：自动跟进线索、催促过期线索、生成周报"},
+    ),
+    (
+        "fine_tuning微调",
+        "Fine-tuning（微调）= 专门训练一个AI，让它更懂你的业务、你的风格、你的人群。",
+        "通用AI像是一个什么都懂一点的通才，微调后的AI像是专门为你们公司培训过的员工——更贵，但更专业。",
+        "暂时不需要做，但需要知道：大多数情况下，提示词优化已经够用了，不需要微调。只有当你发现通用AI总是不够懂你，且这个任务非常重要、频繁重复时，才考虑微调。",
+        "知道什么时候需要微调，什么时候不需要，能帮你省下大量时间和金钱。微调需要成本和数据，不能滥用。",
+        "觉得微调很厉害，我要给我的AI微调一下 → 99%的情况下，提示词工程已经够用，微调是最后一步 | 觉得微调能让AI变聪明 → 其实微调是让它更专业，不是更聪明",
+        {"通用": "需要微调：客服话术必须符合品牌调性、产品知识非常专业且变化少、大量重复的专业问答 | 不需要：日常问答、文案写作、学习辅导", "老师": "如果有一套独特的教学法，可以微调一个最懂你教学风格的AI助教", "运营": "品牌有非常固定的文案风格手册，可以微调一个最懂你们品牌腔调的AI写作助手", "程序员": "有自己的代码规范和框架，可以微调一个最符合你们技术栈的代码助手"},
+    ),
+    (
+        "rag",
+        "RAG = 让AI先查你的资料再回答，而不是靠记忆瞎编。",
+        "就像开卷考试——AI先把你的资料翻一遍，找到相关内容，再回答你的问题。减少瞎编，提高准确性。",
+        "现在可以用：Notion AI、飞书AI、腾讯文档AI都是基于RAG——它们能回答关于你写的文档的问题，而不是全靠公共知识回答。",
+        "AI的知识有截止日期，且可能不准确。RAG让AI能回答关于我自己的事——比如你自己的文档、公司的产品手册、客户的历史记录。这是AI真正落地的关键能力。",
+        "觉得RAG很复杂自己用不上 → 其实Notion AI、飞书AI已经内置了RAG，你已经在用了 | 有了RAG AI就100%准确 → 其实RAG只能减少瞎编，不能完全消除",
+        {"通用": "把自己的知识库（文档、笔记、产品手册）接进AI → AI能回答根据我们公司的规定这类问题", "HR": "把员工手册、公司制度接进AI → 员工自助问HR相关问题", "运营": "把竞品分析报告、用户调研数据接进AI → AI帮你分析时能结合你们自己的数据", "老师": "把自己的教学设计、学生作品接进AI → AI辅导时能结合学生实际情况"},
+    ),
+]
+
+CONCEPT_KNOWLEDGE = {}
+for _c in _CONCEPTS:
+    key, one_line, analogy, exp, why, mistake, ind_exp = _c
+    CONCEPT_KNOWLEDGE[key] = {
+
+
+        "one_line": one_line,
+        "analogy": analogy,
+        "experience": exp,
+        "why_matters": why,
+        "common_mistake": mistake,
+        "industry_examples": ind_exp,
     }
 
+
+TITLE_MAP = {
+    "ai是什么": "AI是什么",
+    "ai引擎": "AI引擎",
+    "ai能做什么不能做什么": "AI能做什么",
+    "ai写好文案": "AI写好文案",
+    "ai辅助决策": "AI辅助决策",
+    "ai提效工作流": "AI提效工作流",
+    "提示词进阶": "提示词进阶",
+    "agent智能体": "Agent智能体",
+    "fine_tuning微调": "Fine-tuning微调",
+}
+
+class AIKnowledgeGuide:
     def __init__(self):
         self.client = openai.OpenAI(
             api_key=os.getenv("DEEPSEEK_API_KEY"),
             base_url="https://api.deepseek.com"
         )
+        self._current_industry = None
 
-    def is_ai_concept_question(self, text: str) -> bool:
-        """判断是否是AI概念问题"""
-        ai_keywords = [
-            '是什么', '什么是', '什么意思', '哪个是',
-            '为什么', '怎么理解', '如何理解',
-            '原理', '机制', '架构', '流程', '核心优势', '特点'
+    def is_ai_learning_question(self, text: str) -> bool:
+        keywords = [
+            "ai是什么","什么是ai","ai怎么用","如何用ai","怎么学ai","ai学习","ai入门","ai基础",
+            "ai能做什么","ai不能做什么","ai会不会","ai能不能",
+            "提示词","prompt","ai引擎","大模型","agent","智能体","rag","fine-tune","fine-tuning","fine_tuning","微调",
+            "思维链","ai写作","ai文案","ai决策","ai提效","ai效率","ai工作流","ai工作",
+            "ai应用","ai行业","ai职业","chatgpt","deepseek","gpt","ai工具","ai助手","ai机器人","学ai","ai学习","怎么学ai",
         ]
-        ai_terms = [
-            'ai', '人工智能', '大模型', '模型', '引擎', 'agent', 'agent',
-            'rag', 'fine-tune', 'fine-tuning', 'token', 'tokens',
-            '提示词', 'prompt', 'prompting', '机器学习', '深度学习',
-            '神经网络', 'nlp', 'gpt', 'llm', 'openai', 'deepseek',
-            'embedding', '向量', '知识库', 'copilot', 'claude',
-            'openclaw', '工作流', 'workflow', 'langchain', 'langchain',
-            '微调', '训练', '智能体', 'embedding', '幻觉'
+        return any(kw in text.lower() for kw in keywords)
+
+    def should_teach_learning_path(self, text: str) -> bool:
+        return any(kw in text.lower() for kw in ["学ai","ai学习","怎么入门","从零开始","AI学习路径","AI路线","从哪开始","怎么学","入门AI","AI入门","学习AI","AI学习方法"])
+
+    def teach_concept(self, concept: str, user_industry: str = None, depth: str = "full") -> str:
+        key = self._normalize_concept(concept)
+        knowledge = CONCEPT_KNOWLEDGE.get(key)
+        if not knowledge:
+            return self._teach_unknown_concept(concept)
+        industry = user_industry or self._current_industry or "通用"
+        if depth == "quick":
+            return knowledge["one_line"] + "\n\n💭 " + knowledge["analogy"]
+        elif depth == "industry":
+            return self._teach_industry_focused(knowledge, industry)
+        else:
+            return self._teach_full(knowledge, key, industry)
+
+    def _normalize_concept(self, concept: str) -> str:
+        mapping = {
+            "ai":"ai是什么","ai是什么":"ai是什么","大模型":"ai是什么",
+            "ai引擎":"ai引擎","引擎":"ai引擎",
+            "提示词":"提示词","提示词基础":"提示词","提示词进阶":"提示词进阶",
+            "ai写文案":"ai写好文案","ai文案":"ai写好文案","ai写作":"ai写好文案",
+            "ai辅助决策":"ai辅助决策","ai决策":"ai辅助决策",
+            "ai提效":"ai提效工作流","ai效率":"ai提效工作流","提效":"ai提效工作流","ai工作流":"ai提效工作流",
+            "思维链":"思维链","cot":"思维链","rag":"rag",
+            "fine-tuning":"fine_tuning微调","fine_tuning":"fine_tuning微调","微调":"fine_tuning微调",
+            "agent":"agent智能体","智能体":"agent智能体","agent智能体":"agent智能体",
+            "ai能做什么":"ai能做什么不能做什么","ai不能做什么":"ai能做什么不能做什么",
+            "ai应用":"ai提效工作流","ai工作":"ai提效工作流",
+        }
+        return mapping.get(concept.lower().strip(), concept.lower().strip())
+
+    def _teach_industry_focused(self, knowledge: Dict, industry: str) -> str:
+        ind_exp = knowledge.get("industry_examples", {})
+        match = ind_exp.get(industry, ind_exp.get("通用",""))
+        parts = [
+            "**" + knowledge["one_line"] + "**",
+            "",
+            "【" + industry + "场景】",
+            match,
+            "",
+            "💭 " + knowledge["analogy"],
         ]
-        
-        has_ai_term = any(term in text.lower() for term in ai_terms)
-        has_ai_question = any(kw in text for kw in ai_keywords)
-        
-        # 避免过度触发（当用户明确在说学AI应用时）
-        if '行业' in text and 'AI' in text:
-            return False
-        
-        return has_ai_term and has_ai_question
+        if knowledge.get("experience"):
+            parts.extend(["", "**现在就能做：**", knowledge["experience"]])
+        return "\n".join(parts)
 
-    def get_quick_explanation(self, concept: str) -> Optional[Dict]:
-        """快速获取概念解释"""
-        concept_lower = concept.lower()
-        
-        for key, value in self.KNOWLEDGE_BASE.items():
-            if key in concept_lower or concept_lower in key:
-                return {
-                    'simple': value['simple'],
-                    'content': value.get('levels') or value.get('rules') or value.get('points') or value.get('steps') or value.get('abilities') or value.get('tips') or value.get('when'),
-                    'analogy': value.get('analogy', ''),
-                    'type': list(value.keys())[1]
-                }
-        
-        return None
-
-    def generate_explanation(self, question: str) -> str:
-        """生成解释"""
-        # 先检查知识库
-        explanation = self.get_quick_explanation(question)
-        
-        if explanation:
-            return self.format_knowledge_response(explanation, question)
-        
-        # 用LLM生成
-        return self.generate_with_llm(question)
-
-    def format_knowledge_response(self, exp: Dict, question: str) -> str:
-        """格式化知识回复"""
-        response = f"{exp['simple']}\n\n"
-        
-        content = exp.get('content', [])
-        if content:
-            if exp.get('type') == 'levels':
-                response += '\n'.join(content) + '\n\n'
-            elif exp.get('type') == 'rules':
-                for rule in content:
-                    response += rule + '\n'
-                response += '\n'
-            elif exp.get('type') == 'points':
-                for point in content:
-                    response += point + '\n'
-                response += '\n'
-            elif exp.get('type') == 'steps':
-                for step in content:
-                    response += step + '\n'
-                response += '\n'
-            elif exp.get('type') == 'abilities':
-                for ability in content:
-                    response += ability + '\n'
-                response += '\n'
-            elif exp.get('type') == 'tips':
-                for tip in content:
-                    response += tip + '\n'
-                response += '\n'
-        
-        if exp.get('analogy'):
-            response += f"💭 打个比方：{exp['analogy']}\n"
-        
-        # 添加使用建议
-        response += self.get_usage_tip(question)
-        
-        return response
-
-    def get_usage_tip(self, question: str) -> str:
-        """获取使用建议"""
-        tips = [
-            "\n\n---\n💡 想知道更多？问我就行~",
-            "\n\n---\n有具体想用的场景吗？可以告诉我",
-            "\n\n---\n想深入了解某个点？继续问~",
+    def _teach_full(self, knowledge: Dict, concept_key: str, industry: str) -> str:
+        ind_exp = knowledge.get("industry_examples", {})
+        match = ind_exp.get(industry, ind_exp.get("通用",""))
+        title = TITLE_MAP.get(concept_key, concept_key)
+        parts = [
+            "## " + title,
+            "",
+            "**" + knowledge["one_line"] + "**",
+            "",
+            "💭 " + knowledge["analogy"],
         ]
-        return random.choice(tips)
-
-    def generate_with_llm(self, question: str) -> str:
-        """用LLM生成解释"""
-        prompt = f"""你是小陆，一个用大白话解释AI概念的伙伴。
-
-用户问：{question}
-
-请用最简单的方式解释：
-1. 一句话说明白
-2. 打个比方（用生活例子）
-3. 一个具体例子
-4. 实际应用场景
-
-要求：
-- 像朋友聊天，不像教科书
-- 不超过200字
-- 让人觉得"原来如此" """
-
+        if knowledge.get("experience"):
+            parts.extend(["", "## 现在就能做", "", knowledge["experience"]])
+        if knowledge.get("why_matters"):
+            parts.extend(["", "## 为什么要知道这个", "", knowledge["why_matters"]])
+        if match:
+            parts.extend(["", "## 在你的领域（" + industry + "）", "", match])
+        if knowledge.get("common_mistake"):
+            parts.extend(["", "## 常见误区", "", knowledge["common_mistake"]])
+        return "\n".join(parts)
+    def _teach_unknown_concept(self, concept: str) -> str:
+        prompt = "你是小陆，一个用大白话讲AI概念的高手。用户问到了：{c}\n\n请用分层教学法来解释：1）一句话说清楚 2）打个比方 3）一个真实场景 4）我能做什么（现在就能做）5）常见误区。要求：像朋友聊天，不超过300字。最后问：你有具体想用它的场景吗？".replace("{c}", concept)
         try:
-            response = self.client.chat.completions.create(
+            resp = self.client.chat.completions.create(
                 model="deepseek-chat",
                 messages=[{"role": "user", "content": prompt}],
-                max_tokens=400
+                max_tokens=600
             )
-            result = response.choices[0].message.content.strip()
-            
-            # 添加使用建议
-            result += self.get_usage_tip(question)
-            
-            return result
-        except:
-            return "这个问题我也想多了解一些，我们可以一起查~"
+            return resp.choices[0].message.content.strip()
+        except Exception:
+            return concept + "这个问题我还想多学学才能讲清楚。你可以告诉我具体想解决什么问题，我来帮你找到最合适的答案~"
 
-
-class IndustryAIContext:
-    """行业AI应用上下文"""
-
-    INDUSTRY_AI_TIPS = {
-        '非技术': [
-            'AI不是要取代你，是帮你省时间',
-            '学会"指挥"AI，比学会"使用"AI更重要',
-            '先把重复的事交给AI',
-            'AI辅助决策，不是AI做决定',
-        ],
-        '技术': [
-            'GitHub Copilot是程序员的AI助手',
-            'AI写的代码要review，不能直接用',
-            '会用prompt比会训练模型更实用',
-            'AI是效率工具，不是炫技工具',
+    def show_learning_path(self, user_industry: str = None) -> str:
+        industry = user_industry or self._current_industry or "通用"
+        lines = [
+            "## AI学习地图",
+            "",
+            "找到你在哪里，想去哪里。",
+            "",
+            "原则：不要为了学AI而学AI——学会用它减负，才是目的。",
+            "",
+            "### 你在哪个阶段？",
+            "",
         ]
-    }
+        for stage_key, stage in LEARNING_PATH.items():
+            lines.append("**" + stage["name"] + "**（" + stage["duration"] + "）")
+            lines.append("  " + stage["description"] + "目标：" + stage["goal"] + "内容：" + ",".join(stage["topics"][:4]))
+            lines.append("")
+        lines.extend(["### 怎么开始？", "","不知道自己在哪？→ 告诉我你是做什么的，我帮你定位","想从头开始？→ 问AI是什么，我们从那里开始","已经有基础？→ 告诉我你想深入哪个，我直接讲","想解决具体问题？→ 直接说你的问题，我帮你找最相关的","","你是什么职业？或者你现在最想用AI解决什么问题？"])
+        return "\n".join(lines)
 
-    @classmethod
-    def get_tip_for_user(self, text: str) -> Optional[str]:
-        """根据用户背景给提示"""
-        is_tech = any(t in text for t in ['程序员', '开发', '工程师', '代码'])
-        tips = self.INDUSTRY_AI_TIPS['技术'] if is_tech else self.INDUSTRY_AI_TIPS['非技术']
-        return random.choice(tips)
+    def set_industry(self, industry: str):
+        self._current_industry = industry
+
+    def get_industry(self) -> Optional[str]:
+        return self._current_industry
+
+QUICK_ACTIONS = {
+    "运营": [
+        "📱 **今天就能做的**：把你最近发的一条朋友圈文案丢给AI，说帮我改得更吸引人、更短",
+        "🔍 **今天就能做的**：把你这个月的运营数据告诉AI，问哪些指标最需要优化、为什么",
+        "💡 **本周就能做的**：用AI生成10个活动标题或选题，选3个最喜欢的，让你来判断哪个更好"
+    ],
+    "老师": [
+        "📝 **今天就能做的**：把你的教案要点告诉AI，说帮我生成5道配套练习题",
+        "📊 **今天就能做的**：把你班级的成绩数据给AI，让它分析学生的薄弱知识点",
+        "🎯 **本周就能做的**：让AI扮演学生，模拟提问，看你能不能回答好——教学相长"
+    ],
+    "设计师": [
+        "💬 **今天就能做的**：用语言描述你想要的感觉或画面，让AI帮你找参考",
+        "📝 **今天就能做的**：把你的设计说明丢给AI，让它帮我写一段100字的设计理念",
+        "🔄 **本周就能做的**：把你接到的需求描述给AI，让它帮我列出5个不同的设计方向"
+    ],
+    "程序员": [
+        "🐛 **今天就能做的**：把你遇到的报错信息丢给AI，说帮我分析这个错误",
+        "📖 **今天就能做的**：把一段你看不懂的代码丢给AI，说用简单的话解释这段代码",
+        "🔨 **本周就能做的**：用AI帮你写一个代码框架或注释，然后你来补关键逻辑"
+    ],
+    "销售": [
+        "📧 **今天就能做的**：把你上次发客户的邮件丢给AI，说帮我改得更专业但不失亲和力",
+        "🎭 **今天就能做的**：让AI扮演最难搞的客户类型，对着你推销，看你怎么应对",
+        "📋 **今天就能做的**：把你的产品卖点告诉AI，让它生成10个不同的客户价值主张"
+    ],
+    "HR": [
+        "📄 **今天就能做的**：把岗位JD丢给AI，说帮我优化这段招聘要求，更吸引人",
+        "📊 **今天就能做的**：把你收集的简历丢给AI，说帮我按匹配度排序，给出原因",
+        "📧 **本周就能做的**：用AI生成一套面试问题模板，按不同岗位定制"
+    ],
+    "学生": [
+        "📚 **今天就能做的**：把一段你看不懂的概念丢给AI，说用生活例子解释这个",
+        "📝 **今天就能做的**：把你的作业或论文草稿丢给AI，说帮我找出逻辑不清晰的地方",
+        "📖 **本周就能做的**：用AI帮你制定一个7天复习计划，按你的时间和目标"
+    ],
+    "通用": [
+        "📧 **今天就能做的**：把你想发但不知道怎么措辞的消息丢给AI，让它帮你改",
+        "📝 **今天就能做的**：把一段你想写的东西丢给AI，让它帮我换个更有说服力的说法",
+        "🔍 **本周就能做的**：列出你每天重复做的事情，问AI哪些可以交给AI做"
+    ]
+}
+
+def recommend_industry_action(user_text: str) -> str:
+    industry = detect_industry(user_text) or "通用"
+    actions = QUICK_ACTIONS.get(industry, QUICK_ACTIONS["通用"])
+    result_lines = [
+        "## " + industry + "的AI减负清单",
+        "",
+        "核心原则：AI不是让你学更多，而是让你做更少。",
+        "",
+    ]
+    for action in actions:
+        result_lines.append(action)
+        result_lines.append("")
+    result_lines.extend(["---","","记住这个顺序：","1. 先挑一件你今天最烦躁的重复性工作","2. 问AI能不能帮你做","3. 试了再说","","有了具体问题，随时告诉我——我们边做边学。"])
+    return "\n".join(result_lines)

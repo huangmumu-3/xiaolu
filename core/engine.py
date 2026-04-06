@@ -101,9 +101,15 @@ class CompanionEngine:
         # ─── 嘴替检测优先 ─────────────────────────────────
         # 检测是否需要嘴替
         if not skip_witness:
-            # AI知识解释
-            if self.ai_knowledge.is_ai_concept_question(user_input):
-                return self.ai_knowledge.generate_explanation(user_input)
+            # AI知识学习系统 - 分层教学法
+            if self.ai_knowledge.is_ai_learning_question(user_input):
+                from core.ai_knowledge import detect_industry
+                industry = detect_industry(user_input)
+                if industry and not self.ai_knowledge.get_industry():
+                    self.ai_knowledge.set_industry(industry)
+                if self.ai_knowledge.should_teach_learning_path(user_input):
+                    return self.ai_knowledge.show_learning_path(industry)
+                return self.ai_knowledge.teach_concept(user_input, industry, depth="full")
             
             # 技能安装/管理
             if self.skill_handler.is_skill_request(user_input):
